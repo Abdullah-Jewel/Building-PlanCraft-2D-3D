@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PlanCraft 3D</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<style>
+:root{--bg:#e8edf3;--pn:#fff;--tx:#0f172a;--mu:#64748b;--bd:#cbd5e1;--ac:#0284c7;--on:#fff;--cv:#f8fafc;--gr:#cbd5e1;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a111d;--pn:#111b2e;--tx:#e2e8f0;--mu:#94a3b8;--bd:#26344f;--ac:#38bdf8;--on:#06223a;--cv:#0e1626;--gr:#22304a}}
+:root[data-theme="dark"]{--bg:#0a111d;--pn:#111b2e;--tx:#e2e8f0;--mu:#94a3b8;--bd:#26344f;--ac:#38bdf8;--on:#06223a;--cv:#0e1626;--gr:#22304a}
+html,body,#root{height:100%;margin:0}body{background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+.pn{background:var(--pn);border:1px solid var(--bd);color:var(--tx)}
+.bt{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .6rem;border-radius:.5rem;font-size:.8rem;color:var(--tx);border:1px solid transparent;transition:background .15s,color .15s;cursor:pointer;white-space:nowrap}
+.bt:hover{background:color-mix(in srgb,var(--ac) 18%,transparent)}.bt.on{background:var(--ac);color:var(--on)}
+.inp{background:var(--bg);border:1px solid var(--bd);border-radius:.4rem;padding:.25rem .4rem;color:var(--tx);font-size:.8rem}
+.mu{color:var(--mu)}canvas{display:block;touch-action:none}
+</style></head>
+<body><div id="root"></div>
+<script type="text/babel">
+const {useState,useRef,useEffect,useMemo}=React;
+const uid=()=>Math.random().toString(36).slice(2,9),SC=50,DH=2.1,WS=.9;
+const IC={select:"M3 3l7 17 2.5-7.5L20 10z",wall:"M3 4h18v16H3zM3 12h18M9 4v8M15 12v8",door:"M5 21V3h10l4 2v16M5 21h14M12 12h.01",window:"M4 4h16v16H4zM12 4v16M4 12h16",floor:"M3 3h18v18H3zM3 12h18M12 3v9M8 12v9",wire:"M4 20c6 0 4-16 10-16h6",plus:"M12 5v14M5 12h14",minus:"M5 12h14",reset:"M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5",data:"M5 3h12l4 4v14H3V3zM7 3v6h8M7 21v-7h10v7",img:"M3 3h18v18H3zM3 16l5-5 4 4 3-3 6 6",list:"M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01",trash:"M4 7h16M9 7V3h6v4M6 7l1 14h10l1-14",sun:"M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4M12 8a4 4 0 100 8 4 4 0 000-8",moon:"M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z",cube:"M12 2l9 5v10l-9 5-9-5V7zM12 12l9-5M12 12v10M12 12L3 7",grid:"M3 3h18v18H3zM3 9h18M3 15h18M9 3v18M15 3v18",eye:"M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM12 9a3 3 0 100 6 3 3 0 000-6",x:"M6 6l12 12M18 6L6 18",menu:"M4 6h16M4 12h16M4 18h16",rot:"M21 12a9 9 0 11-3-6.7L21 8M21 3v5h-5"};
+const I=({n,s=17})=><svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={IC[n]}/></svg>;
+const mk=(k,n,c,w,d,h,col,o={})=>({k,n,c,w,d,h,col,elev:0,...o});
+const CAT=[mk('sofa','Sofa','Living',2,.9,.8,'#64748b'),mk('chair','Armchair','Living',.9,.9,.8,'#0f766e'),mk('tvu','TV unit','Living',1.6,.4,.5,'#78350f'),mk('ctab','Coffee table','Living',1.1,.6,.4,'#a16207'),
+mk('bed','Double bed','Bedroom',1.6,2,.5,'#94a3b8'),mk('ward','Wardrobe','Bedroom',1.4,.6,2,'#92400e'),mk('nst','Nightstand','Bedroom',.45,.4,.5,'#a16207'),
+mk('cnt','Counter','Kitchen',2,.6,.9,'#d6d3d1'),mk('fri','Fridge','Kitchen',.7,.7,1.8,'#e2e8f0'),mk('dtab','Dining table','Kitchen',1.6,.9,.75,'#b45309'),
+mk('wc','Toilet','Bath',.4,.65,.4,'#f8fafc'),mk('van','Vanity','Bath',.7,.5,.85,'#e2e8f0'),mk('tub','Bathtub','Bath',1.7,.75,.5,'#f1f5f9'),
+mk('o110','Outlet 110V','Outlets',.12,.08,.12,'#f59e0b',{elev:.3,s:'O'}),mk('o220','Outlet 220V','Outlets',.12,.08,.12,'#ef4444',{elev:.3,s:'O'}),mk('eth','Ethernet / TV port','Outlets',.1,.06,.1,'#38bdf8',{elev:.3,s:'N'}),
+mk('lgt','Ceiling light','Lighting',.3,.3,.06,'#fde047',{elev:2.7,s:'L',lit:1}),mk('led','LED panel','Lighting',.6,.6,.04,'#fef9c3',{elev:2.7,s:'P',lit:1}),mk('sw','Switch','Lighting',.08,.08,.12,'#e2e8f0',{elev:1.2,s:'S'}),
+mk('brk','Circuit breaker panel','Panel',.3,.15,.45,'#475569',{elev:1.4,s:'B'}),mk('hvac','HVAC vent','HVAC',.6,.3,.1,'#94a3b8',{elev:2.7,s:'V'})];
+const EC=new Set(['Outlets','Lighting','Panel','HVAC']);
+const GROUPS={Furniture:['Living','Bedroom','Kitchen','Bath'],Electrical:['Outlets','Lighting','Panel','HVAC']};
+const f=(n,c,p='')=>({n,c,p});
+const FIN={Flooring:[f('Oak','#c8a27a','wood'),f('Walnut','#7b5a3c','wood'),f('Birch','#e6cfa6','wood'),f('Marble tile','#e5e7eb','tile'),f('Slate tile','#475569','tile'),f('Concrete','#9ca3af','concrete')],
+'Wall Paints':[f('White','#f8fafc'),f('Cream','#fef3c7'),f('Sage','#a7c4a0'),f('Sky','#bae6fd'),f('Terracotta','#e07a5f'),f('Charcoal','#374151')],
+'Wood Textures':[f('Pine','#deb887','wood'),f('Cherry','#9a4a2f','wood'),f('Ebony','#2b2118','wood')],
+Tiles:[f('Subway white','#f1f5f9','tile'),f('Teal','#0d9488','tile'),f('Clay','#c2693f','tile'),f('Black','#1f2937','tile')],
+Concrete:[f('Light','#cbd5e1','concrete'),f('Dark','#64748b','concrete')]};
+const patBg=p=>p==='wood'?'repeating-linear-gradient(0deg,rgba(0,0,0,.28) 0 1px,transparent 1px 7px)':p==='tile'?'linear-gradient(rgba(0,0,0,.3) 1px,transparent 1px) 0 0/10px 10px,linear-gradient(90deg,rgba(0,0,0,.3) 1px,transparent 1px) 0 0/10px 10px':p==='concrete'?'radial-gradient(rgba(0,0,0,.25) 1px,transparent 1px) 0 0/5px 5px':'none';
+const PC={};
+const patCanvas=(col,pat)=>{const k=col+pat;if(PC[k])return PC[k];const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');g.fillStyle=col;g.fillRect(0,0,128,128);g.strokeStyle='rgba(0,0,0,.3)';g.lineWidth=2;
+if(pat==='wood')for(let y=0;y<128;y+=32){g.beginPath();g.moveTo(0,y);g.lineTo(128,y);const x=(y/32%2)*64+20;g.moveTo(x,y);g.lineTo(x,y+32);g.stroke()}
+if(pat==='tile'){g.beginPath();for(let i=0;i<128;i+=64){g.moveTo(i,0);g.lineTo(i,128);g.moveTo(0,i);g.lineTo(128,i)}g.stroke()}
+if(pat==='concrete')for(let i=0;i<500;i++){g.fillStyle=`rgba(0,0,0,${Math.random()*.12})`;g.fillRect(Math.random()*128,Math.random()*128,2,2)}
+return PC[k]=c};
+const len=w=>Math.hypot(w.x2-w.x1,w.y2-w.y1);
+const cut=(w,ops)=>{const L=len(w),o=ops.filter(p=>p.wid===w.id).map(p=>({a:Math.max(0,p.t*L-p.w/2),b:Math.min(L,p.t*L+p.w/2),type:p.type})).sort((a,b)=>a.a-b.a),s=[];let c=0;o.forEach(p=>{if(p.a>c)s.push([c,p.a]);c=Math.max(c,p.b)});if(c<L)s.push([c,L]);return{L,solid:s,opens:o}};
+const mkItem=(d,x,y)=>({id:uid(),k:d.k,n:d.n,c:d.c,x,y,rot:0,w:d.w,d:d.d,h:d.h,elev:d.elev,col:d.col,s:d.s,lit:d.lit,pat:''});
+const W=(id,x1,y1,x2,y2)=>({id,x1,y1,x2,y2,h:2.8,t:.2,col:'#e2e8f0',pat:''});
+const demo=()=>{const sofa=mkItem(CAT[0],1.6,3.1),lg=mkItem(CAT[16],3,2),sw=mkItem(CAT[18],.3,1.2),o=mkItem(CAT[13],5.8,2);return{walls:[W('a',0,0,6,0),W('b',6,0,6,4),W('c',6,4,0,4),W('d',0,4,0,0)],ops:[{id:'o1',wid:'c',t:.25,type:'door',w:.9},{id:'o2',wid:'a',t:.5,type:'window',w:1.4}],items:[sofa,lg,sw,o],floors:[{id:'f1',x:0,y:0,w:6,d:4,col:'#c8a27a',pat:'wood'}],wires:[{id:'w1',a:lg.id,b:sw.id}]}};
+const COLL={wall:'walls',op:'ops',item:'items',floor:'floors',wire:'wires'};
+const HINT={select:'Click to select, drag to move, drag empty space to pan, wheel to zoom. R rotates, Delete removes.',wall:'Click and drag to draw a wall. Ends snap to existing wall ends.',door:'Hover a wall and click to cut a door.',window:'Hover a wall and click to cut a window.',floor:'Drag a rectangle to create a floor zone.',wire:'Click a fixture, then a second one to draw a circuit between them.',place:'Click to place the item. Esc to stop placing.'};
+const TOOLS=[['select','Select and move'],['wall','Draw wall'],['door','Place door'],['window','Place window'],['floor','Floor zone'],['wire','Wire connector']];
+
+function Scene3D({P,layer,night,fp}){
+ const ref=useRef(),S=useRef({}),first=useRef(true);
+ useEffect(()=>{const el=ref.current,r=new THREE.WebGLRenderer({antialias:true});r.setPixelRatio(Math.min(devicePixelRatio,2));r.shadowMap.enabled=true;el.appendChild(r.domElement);
+  const sc=new THREE.Scene(),cam=new THREE.PerspectiveCamera(55,1,.1,300),oc=new THREE.OrbitControls(cam,r.domElement);oc.enableDamping=true;oc.maxPolarAngle=Math.PI/2.05;
+  const grp=new THREE.Group(),amb=new THREE.AmbientLight(0xffffff,.6),sun=new THREE.DirectionalLight(0xffffff,.9),gr=new THREE.Mesh(new THREE.PlaneGeometry(300,300),new THREE.MeshStandardMaterial({color:'#64748b'}));
+  sun.position.set(10,20,8);sun.castShadow=true;sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-25,right:25,top:25,bottom:-25,far:90});
+  gr.rotation.x=-Math.PI/2;gr.position.y=-.02;gr.receiveShadow=true;sc.add(grp,amb,sun,gr);
+  const s=S.current={r,sc,cam,oc,grp,amb,sun,gr,k:{},yaw:0,pitch:0,fp:false,c:[3,2]};
+  const rs=()=>{const w=el.clientWidth||300,h=el.clientHeight||300;r.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix()};rs();const ro=new ResizeObserver(rs);ro.observe(el);
+  const kd=e=>{s.k[e.key.toLowerCase()]=1},ku=e=>{s.k[e.key.toLowerCase()]=0};addEventListener('keydown',kd);addEventListener('keyup',ku);
+  let dr=null;const pd=e=>{dr=[e.clientX,e.clientY]},pm=e=>{if(s.fp&&dr){s.yaw-=(e.clientX-dr[0])*.005;s.pitch=Math.max(-1.2,Math.min(1.2,s.pitch-(e.clientY-dr[1])*.005));dr=[e.clientX,e.clientY]}},pu=()=>dr=null;
+  r.domElement.addEventListener('pointerdown',pd);addEventListener('pointermove',pm);addEventListener('pointerup',pu);
+  let raf;const loop=()=>{raf=requestAnimationFrame(loop);if(s.fp){const k=s.k,fw=(k.w||k.arrowup?1:0)-(k.s||k.arrowdown?1:0),sd=(k.d||k.arrowright?1:0)-(k.a||k.arrowleft?1:0),fx=-Math.sin(s.yaw),fz=-Math.cos(s.yaw);cam.position.x+=(fx*fw-fz*sd)*.07;cam.position.z+=(fz*fw+fx*sd)*.07;cam.position.y=1.6;cam.rotation.set(s.pitch,s.yaw,0,'YXZ')}else oc.update();r.render(sc,cam)};loop();
+  return()=>{cancelAnimationFrame(raf);ro.disconnect();removeEventListener('keydown',kd);removeEventListener('keyup',ku);removeEventListener('pointermove',pm);removeEventListener('pointerup',pu);r.dispose();el.removeChild(r.domElement)}},[]);
+ useEffect(()=>{const s=S.current,{grp}=s;
+  grp.traverse(o=>{o.geometry&&o.geometry.dispose();o.material&&[].concat(o.material).forEach(x=>{x.map&&x.map.dispose();x.dispose()})});grp.clear();
+  const xs=[],zs=[];P.walls.forEach(w=>{xs.push(w.x1,w.x2);zs.push(w.y1,w.y2)});P.floors.forEach(q=>{xs.push(q.x,q.x+q.w);zs.push(q.y,q.y+q.d)});
+  s.c=xs.length?[(Math.min(...xs)+Math.max(...xs))/2,(Math.min(...zs)+Math.max(...zs))/2]:[3,2];
+  s.sc.background=new THREE.Color(night?'#0b1020':'#bfdbfe');s.amb.intensity=night?.2:.65;s.sun.intensity=night?0:.9;s.gr.material.color.set(night?'#1e293b':'#64748b');
+  if(first.current){first.current=false;s.cam.position.set(s.c[0]+9,8,s.c[1]+11);s.oc.target.set(s.c[0],0,s.c[1])}
+  const mat=(col,pat,rx=1,ry=1,o={})=>{let map=null;if(pat){map=new THREE.CanvasTexture(patCanvas(col,pat));map.wrapS=map.wrapT=THREE.RepeatWrapping;map.repeat.set(rx,ry)}return new THREE.MeshStandardMaterial({color:pat?0xffffff:col,map,roughness:.8,...o})};
+  const add=(g,m,x,y,z,sh=true)=>{const me=new THREE.Mesh(g,m);me.position.set(x,y,z);me.castShadow=sh;me.receiveShadow=true;return me};
+  const ghost=layer==='elec'?{transparent:true,opacity:.28}:{};
+  P.floors.forEach(q=>{const m=add(new THREE.PlaneGeometry(q.w,q.d),mat(q.col,q.pat,q.w,q.d,layer==='elec'?ghost:{}),q.x+q.w/2,.01,q.y+q.d/2,false);m.rotation.x=-Math.PI/2;grp.add(m)});
+  P.walls.forEach(w=>{const{L,solid,opens}=cut(w,P.ops),g=new THREE.Group(),a=Math.atan2(w.y2-w.y1,w.x2-w.x1);g.position.set(w.x1,0,w.y1);g.rotation.y=-a;
+   const pc=(p,q,y0,y1,m)=>{if(q-p>.001&&y1-y0>.001)g.add(add(new THREE.BoxGeometry(q-p,y1-y0,w.t),m||mat(w.col,w.pat,(q-p),(y1-y0),ghost),(p+q)/2,(y0+y1)/2,0))};
+   solid.forEach(([p,q])=>pc(p,q,0,w.h));
+   opens.forEach(o=>{if(o.type==='door')pc(o.a,o.b,DH,w.h);else{pc(o.a,o.b,0,WS);pc(o.a,o.b,WS+1.2,w.h);g.add(add(new THREE.BoxGeometry(o.b-o.a,1.2,.04),new THREE.MeshStandardMaterial({color:'#7dd3fc',transparent:true,opacity:.4}),(o.a+o.b)/2,WS+.6,0,false))}});grp.add(g)});
+  const show=i=>layer==='interior'?!EC.has(i.c):layer==='elec'?EC.has(i.c):false,pos=i=>[i.x,i.elev+i.h/2,i.y];
+  P.items.forEach(i=>{if(i.lit&&night){const l=new THREE.PointLight(0xffd9a0,1.1,9);l.position.set(i.x,i.elev-.15,i.y);grp.add(l)}
+   if(!show(i))return;const m=add(new THREE.BoxGeometry(i.w,i.h,i.d),mat(i.col,i.pat,1,1,i.lit?{emissive:new THREE.Color(i.col),emissiveIntensity:night?1.6:.25}:{}),...pos(i));m.rotation.y=-i.rot*Math.PI/180;grp.add(m)});
+  if(layer==='elec')P.wires.forEach(q=>{const a=P.items.find(i=>i.id===q.a),b=P.items.find(i=>i.id===q.b);if(!a||!b)return;const A=pos(a),B=pos(b),v=(p)=>new THREE.Vector3(...p);grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([v(A),new THREE.Vector3(A[0],2.9,A[2]),new THREE.Vector3(B[0],2.9,B[2]),v(B)]),new THREE.LineBasicMaterial({color:'#f97316'})))});
+ },[P,layer,night]);
+ useEffect(()=>{const s=S.current;s.fp=fp;s.oc.enabled=!fp;if(fp){s.cam.position.set(s.c[0],1.6,s.c[1]);s.yaw=0;s.pitch=0}else{s.cam.position.set(s.c[0]+9,8,s.c[1]+11);s.oc.target.set(s.c[0],0,s.c[1]);s.oc.update()}},[fp]);
+ return <div ref={ref} className="absolute inset-0"/>;
+}
+
+const F=({l,v,on,st=.1,min=0})=><label className="flex items-center justify-between gap-2 text-xs"><span className="mu">{l}</span><input type="number" step={st} value={+(+v).toFixed(3)} onChange={e=>{const n=parseFloat(e.target.value);if(isFinite(n)&&n>=min)on(n)}} className="inp w-24"/></label>;
+const Modal=({t,x,children})=><div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:'rgba(2,6,23,.6)'}} onClick={x}><div className="pn rounded-xl p-4 w-full max-w-lg max-h-full overflow-auto" onClick={e=>e.stopPropagation()}><div className="flex justify-between items-center mb-3"><b>{t}</b><button className="bt" onClick={x} title="Close"><I n="x"/></button></div>{children}</div></div>;
+
+function App(){
+ const [P,setP]=useState(demo),[mode,setMode]=useState('2d'),[layer,setLayer]=useState('arch'),[tool,setTool]=useState('select'),[sel,setSel]=useState(null),[snap,setSnap]=useState(true),[unit,setUnit]=useState('m'),[view,setView]=useState({ox:120,oy:110,z:1}),[tab,setTab]=useState('Structure'),[q,setQ]=useState(''),[place,setPlace]=useState(null),[night,setNight]=useState(false),[fp,setFp]=useState(false),[modal,setModal]=useState(null),[theme,setTheme]=useState(()=>matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'),[msg,setMsg]=useState(''),[side,setSide]=useState(innerWidth>800),[custom,setCustom]=useState('#3b82f6'),[tick,setTick]=useState(0),[conf,setConf]=useState(false),[txt,setTxt]=useState(''),[sz,setSz]=useState({w:800,h:600});
+ const cv=useRef(),box=useRef(),D=useRef({}),fmt=m=>unit==='m'?m.toFixed(2)+' m':(m*3.28084).toFixed(1)+' ft';
+ useEffect(()=>{document.documentElement.setAttribute('data-theme',theme)},[theme]);
+ useEffect(()=>{const el=box.current,ro=new ResizeObserver(()=>setSz({w:el.clientWidth,h:el.clientHeight}));ro.observe(el);return()=>ro.disconnect()},[]);
+ const sn=v=>snap?Math.round(v/.25)*.25:v,vis=i=>layer==='arch'?false:layer==='elec'?EC.has(i.c):!EC.has(i.c);
+ const edit=(t,id,patch)=>setP(p=>({...p,[COLL[t]]:p[COLL[t]].map(o=>o.id===id?{...o,...patch}:o)}));
+ const del=()=>{if(!sel)return;setP(p=>{const n={...p,[COLL[sel.t]]:p[COLL[sel.t]].filter(o=>o.id!==sel.id)};if(sel.t==='wall')n.ops=n.ops.filter(o=>o.wid!==sel.id);if(sel.t==='item')n.wires=n.wires.filter(w=>w.a!==sel.id&&w.b!==sel.id);return n});setSel(null)};
+ const pick=t=>{setTool(t);if(t!=='place')setPlace(null);D.current.wf=null;if(t==='wire')setLayer('elec');setMode('2d')};
+ const addItem=(d,x,y)=>{const it=mkItem(d,x,y);setP(p=>({...p,items:[...p.items,it]}));setSel({t:'item',id:it.id});setLayer(EC.has(d.c)?'elec':'interior')};
+ useEffect(()=>{const kd=e=>{if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key==='Escape'){pick('select');setSel(null)}if(e.key==='Delete'||e.key==='Backspace')del();if(e.key==='r'&&sel?.t==='item'){const it=P.items.find(i=>i.id===sel.id);it&&edit('item',it.id,{rot:(it.rot+90)%360})}if(e.key==='v')pick('select')};addEventListener('keydown',kd);return()=>removeEventListener('keydown',kd)});
+ const pt=e=>{const r=cv.current.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top,s=SC*view.z;return{x:(px-view.ox)/s,y:(py-view.oy)/s,px,py}};
+ const nearWall=p=>{let b=null;P.walls.forEach(w=>{const dx=w.x2-w.x1,dy=w.y2-w.y1,L2=dx*dx+dy*dy||1,t=Math.max(0,Math.min(1,((p.x-w.x1)*dx+(p.y-w.y1)*dy)/L2)),d=Math.hypot(p.x-w.x1-dx*t,p.y-w.y1-dy*t);if(!b||d<b.dist)b={w,t,dist:d}});return b};
+ const snapPt=p=>{let b=null;P.walls.forEach(w=>[[w.x1,w.y1],[w.x2,w.y2]].forEach(([x,y])=>{const d=Math.hypot(p.x-x,p.y-y);if(d<.3&&(!b||d<b.d))b={x,y,d}}));return b?{x:b.x,y:b.y}:{x:sn(p.x),y:sn(p.y)}};
+ const hit=p=>{for(const it of [...P.items].reverse()){if(!vis(it))continue;const th=it.rot*Math.PI/180,dx=p.x-it.x,dy=p.y-it.y,lx=dx*Math.cos(th)+dy*Math.sin(th),ly=-dx*Math.sin(th)+dy*Math.cos(th),e=EC.has(it.c);if(Math.abs(lx)<=(e?.2:Math.max(it.w/2,.1))&&Math.abs(ly)<=(e?.2:Math.max(it.d/2,.1)))return{t:'item',id:it.id}}
+  for(const o of P.ops){const w=P.walls.find(w=>w.id===o.wid);if(w&&Math.hypot(p.x-w.x1-(w.x2-w.x1)*o.t,p.y-w.y1-(w.y2-w.y1)*o.t)<=Math.max(o.w/2,.25))return{t:'op',id:o.id}}
+  const nw=nearWall(p);if(nw&&nw.dist<=nw.w.t/2+.1)return{t:'wall',id:nw.w.id};
+  for(const fl of [...P.floors].reverse())if(p.x>=fl.x&&p.x<=fl.x+fl.w&&p.y>=fl.y&&p.y<=fl.y+fl.d)return{t:'floor',id:fl.id};return null};
+ const md=e=>{const p=pt(e),d=D.current,pan={t:'pan',px:p.px,py:p.py,o:{...view}};
+  if(e.button===1||e.button===2||e.shiftKey){d.m=pan;return}if(e.button!==0)return;
+  if(tool==='select'){const h=hit(p);setSel(h);if(!h)d.m=pan;else if(h.t==='item'){const it=P.items.find(i=>i.id===h.id);d.m={t:'mv',id:h.id,dx:p.x-it.x,dy:p.y-it.y}}else if(h.t==='floor'){const fl=P.floors.find(i=>i.id===h.id);d.m={t:'mvf',id:h.id,dx:p.x-fl.x,dy:p.y-fl.y}}else if(h.t==='op')d.m={t:'mvo',id:h.id}}
+  else if(tool==='wall'){const a=snapPt(p);d.m={t:'wall',a,b:a}}
+  else if(tool==='floor'){const a={x:sn(p.x),y:sn(p.y)};d.m={t:'fl',a,b:a}}
+  else if(tool==='door'||tool==='window'){const nw=nearWall(p);if(nw&&nw.dist<.6){const o={id:uid(),wid:nw.w.id,t:nw.t,type:tool,w:tool==='door'?WS:1.2};setP(s=>({...s,ops:[...s.ops,o]}));setSel({t:'op',id:o.id})}}
+  else if(tool==='place'&&place)addItem(place,sn(p.x),sn(p.y));
+  else if(tool==='wire'){const h=hit(p);if(h&&h.t==='item'){if(d.wf&&d.wf!==h.id){const a=d.wf;setP(s=>({...s,wires:[...s.wires,{id:uid(),a,b:h.id}]}));d.wf=null}else d.wf=h.id}}
+  setTick(t=>t+1)};
+ const mm=e=>{const p=pt(e),d=D.current,m=d.m;d.cur=p;
+  if(m){if(m.t==='pan')setView({...m.o,ox:m.o.ox+p.px-m.px,oy:m.o.oy+p.py-m.py});
+   else if(m.t==='mv')edit('item',m.id,{x:sn(p.x-m.dx),y:sn(p.y-m.dy)});
+   else if(m.t==='mvf')edit('floor',m.id,{x:sn(p.x-m.dx),y:sn(p.y-m.dy)});
+   else if(m.t==='mvo'){const o=P.ops.find(o=>o.id===m.id),w=P.walls.find(w=>w.id===o.wid),dx=w.x2-w.x1,dy=w.y2-w.y1;edit('op',m.id,{t:Math.max(.05,Math.min(.95,((p.x-w.x1)*dx+(p.y-w.y1)*dy)/(dx*dx+dy*dy)))})}
+   else if(m.t==='wall')m.b=snapPt(p);else if(m.t==='fl')m.b={x:sn(p.x),y:sn(p.y)}}
+  if(tool==='door'||tool==='window'){const nw=nearWall(p);d.hov=nw&&nw.dist<.6?{w:nw.w,t:nw.t}:null}
+  setTick(t=>t+1)};
+ const mu=()=>{const d=D.current,m=d.m;if(m?.t==='wall'&&Math.hypot(m.b.x-m.a.x,m.b.y-m.a.y)>.1){const w=W(uid(),m.a.x,m.a.y,m.b.x,m.b.y);setP(p=>({...p,walls:[...p.walls,w]}))}
+  if(m?.t==='fl'){const x=Math.min(m.a.x,m.b.x),y=Math.min(m.a.y,m.b.y),w=Math.abs(m.a.x-m.b.x),dd=Math.abs(m.a.y-m.b.y);if(w>.3&&dd>.3)setP(p=>({...p,floors:[...p.floors,{id:uid(),x,y,w,d:dd,col:'#c8a27a',pat:'wood'}]}))}
+  d.m=null;setTick(t=>t+1)};
+ useEffect(()=>{const c=cv.current;if(!c)return;const wh=e=>{e.preventDefault();const r=c.getBoundingClientRect(),px=e.clientX-r.left,py=e.clientY-r.top;setView(v=>{const z=Math.max(.3,Math.min(6,v.z*(e.deltaY<0?1.1:.9)));return{z,ox:px-(px-v.ox)*z/v.z,oy:py-(py-v.oy)*z/v.z}})};c.addEventListener('wheel',wh,{passive:false});return()=>c.removeEventListener('wheel',wh)},[mode]);
+ const zoom=k=>setView(v=>{const z=Math.max(.3,Math.min(6,v.z*k)),cx=sz.w/2,cy=sz.h/2;return{z,ox:cx-(cx-v.ox)*z/v.z,oy:cy-(cy-v.oy)*z/v.z}});
+ /* 2D render */
+ useEffect(()=>{if(mode!=='2d')return;const c=cv.current;if(!c)return;const dpr=devicePixelRatio||1;c.width=sz.w*dpr;c.height=sz.h*dpr;
+  const g=c.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);const cs=getComputedStyle(document.documentElement),V=n=>cs.getPropertyValue(n).trim(),s=SC*view.z,X=x=>view.ox+x*s,Y=y=>view.oy+y*s,AC=V('--ac'),dm=layer==='elec'?.4:1;
+  g.fillStyle=V('--cv');g.fillRect(0,0,sz.w,sz.h);
+  const gl=(st,a)=>{g.globalAlpha=a;g.strokeStyle=V('--gr');g.lineWidth=1;g.beginPath();for(let x=Math.floor(-view.ox/s/st)*st;X(x)<sz.w;x+=st){g.moveTo(X(x),0);g.lineTo(X(x),sz.h)}for(let y=Math.floor(-view.oy/s/st)*st;Y(y)<sz.h;y+=st){g.moveTo(0,Y(y));g.lineTo(sz.w,Y(y))}g.stroke();g.globalAlpha=1};
+  if(s>=60)gl(.25,.35);gl(1,1);
+  P.floors.forEach(fl=>{g.globalAlpha=dm;let st=fl.col;if(fl.pat){st=g.createPattern(patCanvas(fl.col,fl.pat),'repeat');st.setTransform(new DOMMatrix().translate(X(0),Y(0)).scale(s/128))}g.fillStyle=st;g.fillRect(X(fl.x),Y(fl.y),fl.w*s,fl.d*s);g.globalAlpha=1;if(sel?.t==='floor'&&sel.id===fl.id){g.strokeStyle=AC;g.lineWidth=3;g.strokeRect(X(fl.x),Y(fl.y),fl.w*s,fl.d*s)}});
+  if(layer==='elec')P.wires.forEach(w=>{const a=P.items.find(i=>i.id===w.a),b=P.items.find(i=>i.id===w.b);if(!a||!b)return;g.strokeStyle=sel?.t==='wire'&&sel.id===w.id?AC:'#f97316';g.lineWidth=2.5;g.setLineDash([7,4]);g.beginPath();g.moveTo(X(a.x),Y(a.y));g.quadraticCurveTo(X((a.x+b.x)/2+(b.y-a.y)*.15),Y((a.y+b.y)/2+(a.x-b.x)*.15),X(b.x),Y(b.y));g.stroke();g.setLineDash([])});
+  P.walls.forEach(w=>{const{L,solid,opens}=cut(w,P.ops),a=Math.atan2(w.y2-w.y1,w.x2-w.x1),th=w.t*s;g.save();g.translate(X(w.x1),Y(w.y1));g.rotate(a);g.globalAlpha=layer==='elec'?.5:1;g.fillStyle=w.col;g.strokeStyle='#334155';g.lineWidth=1;
+   solid.forEach(([p,q])=>{g.fillRect(p*s,-th/2,(q-p)*s,th);g.strokeRect(p*s,-th/2,(q-p)*s,th)});
+   opens.forEach(o=>{const wd=(o.b-o.a)*s;if(o.type==='window'){g.fillStyle='#7dd3fc';g.fillRect(o.a*s,-th/4,wd,th/2);g.strokeRect(o.a*s,-th/4,wd,th/2)}else{g.strokeStyle='#64748b';g.beginPath();g.moveTo(o.a*s,0);g.lineTo(o.a*s,-wd);g.stroke();g.beginPath();g.arc(o.a*s,0,wd,-Math.PI/2,0);g.stroke()}});
+   if(sel?.t==='wall'&&sel.id===w.id){g.strokeStyle=AC;g.lineWidth=3;g.strokeRect(0,-th/2-3,L*s,th+6)}g.restore();
+   g.fillStyle=V('--mu');g.font='11px system-ui';g.textAlign='center';g.textBaseline='middle';const nx=-Math.sin(a),ny=Math.cos(a),off=th/2+11;g.fillText(fmt(L),X((w.x1+w.x2)/2)+nx*off,Y((w.y1+w.y2)/2)+ny*off)});
+  P.ops.forEach(o=>{if(sel?.t!=='op'||sel.id!==o.id)return;const w=P.walls.find(w=>w.id===o.wid);if(!w)return;g.strokeStyle=AC;g.lineWidth=3;g.beginPath();g.arc(X(w.x1+(w.x2-w.x1)*o.t),Y(w.y1+(w.y2-w.y1)*o.t),Math.max(o.w*s/2,10)+4,0,7);g.stroke()});
+  P.items.filter(vis).forEach(i=>{const w=i.w*s,d=i.d*s,e=EC.has(i.c),r=Math.max(9,Math.max(w,d)/2);g.save();g.translate(X(i.x),Y(i.y));g.rotate(i.rot*Math.PI/180);g.strokeStyle='#0f172a';g.lineWidth=1.5;g.fillStyle=i.col;g.textAlign='center';g.textBaseline='middle';
+   if(e){g.beginPath();g.arc(0,0,r,0,7);g.fill();g.stroke();g.fillStyle='#0f172a';g.font='bold 10px system-ui';g.fillText(i.s,0,0)}else{g.fillRect(-w/2,-d/2,w,d);g.strokeRect(-w/2,-d/2,w,d);if(w>44){g.font='10px system-ui';g.lineWidth=3;g.strokeStyle='rgba(0,0,0,.6)';g.strokeText(i.n,0,0);g.fillStyle='#fff';g.fillText(i.n,0,0)}}
+   if(sel?.t==='item'&&sel.id===i.id){g.strokeStyle=AC;g.lineWidth=3;g.setLineDash([5,3]);const hw=e?r:w/2,hd=e?r:d/2;g.strokeRect(-hw-4,-hd-4,hw*2+8,hd*2+8)}
+   if(D.current.wf===i.id){g.strokeStyle='#f97316';g.lineWidth=3;g.beginPath();g.arc(0,0,r+5,0,7);g.stroke()}g.restore()});
+  const d=D.current,m=d.m;
+  if(m?.t==='wall'){g.strokeStyle=AC;g.lineWidth=Math.max(3,.2*s);g.lineCap='round';g.beginPath();g.moveTo(X(m.a.x),Y(m.a.y));g.lineTo(X(m.b.x),Y(m.b.y));g.stroke();g.lineCap='butt';g.fillStyle=V('--tx');g.font='bold 12px system-ui';g.textAlign='center';g.fillText(fmt(Math.hypot(m.b.x-m.a.x,m.b.y-m.a.y)),X((m.a.x+m.b.x)/2),Y((m.a.y+m.b.y)/2)-14)}
+  if(m?.t==='fl'){g.strokeStyle=AC;g.lineWidth=2;g.setLineDash([6,4]);g.strokeRect(X(Math.min(m.a.x,m.b.x)),Y(Math.min(m.a.y,m.b.y)),Math.abs(m.a.x-m.b.x)*s,Math.abs(m.a.y-m.b.y)*s);g.setLineDash([])}
+  if(d.hov&&(tool==='door'||tool==='window')){const{w,t}=d.hov;g.fillStyle=AC;g.globalAlpha=.6;g.beginPath();g.arc(X(w.x1+(w.x2-w.x1)*t),Y(w.y1+(w.y2-w.y1)*t),(tool==='door'?WS:1.2)*s/2,0,7);g.fill();g.globalAlpha=1}
+  if(tool==='wire'&&d.wf&&d.cur){const a=P.items.find(i=>i.id===d.wf);if(a){g.strokeStyle='#f97316';g.setLineDash([4,4]);g.lineWidth=2;g.beginPath();g.moveTo(X(a.x),Y(a.y));g.lineTo(X(d.cur.x),Y(d.cur.y));g.stroke();g.setLineDash([])}}
+  if(tool==='place'&&place&&d.cur){g.globalAlpha=.5;g.fillStyle=place.col;g.fillRect(X(sn(d.cur.x))-place.w*s/2,Y(sn(d.cur.y))-place.d*s/2,Math.max(place.w*s,14),Math.max(place.d*s,14));g.globalAlpha=1}
+ },[P,sel,view,layer,snap,unit,sz,tick,theme,mode,tool,place]);
+ const sObj=sel&&P[COLL[sel.t]].find(o=>o.id===sel.id);
+ const applyFin=x=>{if(!sObj||!['wall','floor','item'].includes(sel.t)){setMsg('Select a wall, floor zone or furniture item first, then pick a finish.');return}edit(sel.t,sel.id,{col:x.c,pat:x.p});setMsg('')};
+ const bom=useMemo(()=>{const gross=P.walls.reduce((a,w)=>a+len(w)*w.h,0),open=P.ops.reduce((a,o)=>a+o.w*(o.type==='door'?DH:1.2),0),cnt={};P.items.forEach(i=>cnt[i.n]=(cnt[i.n]||0)+1);
+  const wl=P.wires.reduce((a,w)=>{const A=P.items.find(i=>i.id===w.a),B=P.items.find(i=>i.id===w.b);return A&&B?a+Math.hypot(A.x-B.x,A.y-B.y)*1.2+2*(2.9-.8):a},0);
+  return{gross,net:gross-open,cnt,fl:P.floors.reduce((a,x)=>a+x.w*x.d,0),wl,comps:P.items.length+P.ops.length+P.walls.length+P.wires.length,doors:P.ops.filter(o=>o.type==='door').length}},[P]);
+ const openData=()=>{setTxt(JSON.stringify(P,null,1));setModal('data')};
+ const load=t=>{try{const j=JSON.parse(t);if(!['walls','ops','items','floors','wires'].every(k=>Array.isArray(j[k])))throw 0;setP(j);setSel(null);setModal(null)}catch{setMsg('That JSON is not a valid PlanCraft project.')}};
+ const exportPng=()=>{if(mode!=='2d'||!cv.current){setMsg('Switch to 2D to export the blueprint.');return}setTxt(cv.current.toDataURL('image/png'));setModal('png')};
+ const clear=()=>{if(!conf){setConf(true);setTimeout(()=>setConf(false),3000);return}setP({walls:[],ops:[],items:[],floors:[],wires:[]});setSel(null);setConf(false)};
+ const tabs=['Structure','Furniture','Electrical','Finishes'],ql=q.toLowerCase();
+ const Item=d=><div key={d.k} draggable onDragStart={e=>e.dataTransfer.setData('text/plain',d.k)} onClick={()=>{setPlace(d);setTool('place');setMode('2d')}} title={`${d.n}, ${fmt(d.w)} by ${fmt(d.d)}`} className={`bt w-full justify-start ${place?.k===d.k&&tool==='place'?'on':''}`} style={{border:'1px solid var(--bd)'}}><span style={{width:14,height:14,borderRadius:EC.has(d.c)?7:3,background:d.col,border:'1px solid #0f172a',flex:'none'}}/>{d.n}</div>;
+ return <div className="h-full flex flex-col">
+  <header className="pn flex items-center gap-1 px-2 py-1.5 flex-wrap" style={{borderWidth:'0 0 1px'}}>
+   <button className="bt" onClick={()=>setSide(!side)} title="Toggle catalog"><I n="menu"/></button>
+   <b className="flex items-center gap-1.5 mr-2"><span style={{color:'var(--ac)'}}><I n="cube" s={20}/></span>PlanCraft 3D</b>
+   <div className="flex gap-1">{[['2d','2D Blueprint','grid'],['3d','3D View','cube']].map(([k,l,ic])=><button key={k} className={`bt ${mode===k?'on':''}`} onClick={()=>{setMode(k);setFp(false)}} title={l}><I n={ic}/>{l}</button>)}</div>
+   <div className="flex gap-1 mx-1">{[['arch','Architectural'],['elec','Electrical'],['interior','Interior']].map(([k,l])=><button key={k} className={`bt ${layer===k?'on':''}`} onClick={()=>setLayer(k)} title={`${l} layer`}>{l}</button>)}</div>
+   <div className="flex gap-1 ml-auto"><button className="bt" onClick={()=>setModal('bom')} title="Bill of materials"><I n="list"/>BOM</button><button className="bt" onClick={openData} title="Save or load JSON"><I n="data"/>Save / Load</button><button className="bt" onClick={exportPng} title="Export blueprint PNG"><I n="img"/>PNG</button>
+    <button className="bt" style={conf?{background:'#dc2626',color:'#fff'}:{}} onClick={clear} title="Clear canvas"><I n="trash"/>{conf?'Confirm clear':'Clear'}</button><button className="bt" onClick={()=>setTheme(theme==='dark'?'light':'dark')} title="Toggle theme"><I n={theme==='dark'?'sun':'moon'}/></button></div>
+  </header>
+  <div className="flex flex-1 min-h-0 relative">
+   {side&&<aside className="pn flex flex-col w-60 shrink-0 max-md:absolute max-md:z-20 max-md:h-full" style={{borderWidth:'0 1px 0 0'}}>
+    <div className="grid grid-cols-2 gap-1 p-2">{tabs.map(t=><button key={t} className={`bt justify-center ${tab===t?'on':''}`} onClick={()=>setTab(t)}>{t}</button>)}</div>
+    <div className="px-2 pb-2"><input className="inp w-full" placeholder="Search catalog" value={q} onChange={e=>setQ(e.target.value)}/></div>
+    <div className="flex-1 overflow-auto px-2 pb-3 space-y-2">
+     {tab==='Structure'&&TOOLS.filter(t=>t[0]!=='select'&&t[0]!=='wire'&&t[1].toLowerCase().includes(ql)).map(([k,l])=><button key={k} className={`bt w-full justify-start ${tool===k?'on':''}`} style={{border:'1px solid var(--bd)'}} onClick={()=>pick(k)}><I n={k}/>{l}</button>)}
+     {(tab==='Furniture'||tab==='Electrical')&&GROUPS[tab].map(gp=>{const l=CAT.filter(d=>d.c===gp&&d.n.toLowerCase().includes(ql));return l.length?<div key={gp}><div className="text-xs mu mb-1">{gp}</div><div className="space-y-1">{l.map(Item)}</div></div>:null})}
+     {tab==='Finishes'&&<>{Object.entries(FIN).map(([gp,l])=>{const v=l.filter(x=>x.n.toLowerCase().includes(ql)||gp.toLowerCase().includes(ql));return v.length?<div key={gp}><div className="text-xs mu mb-1">{gp}</div><div className="grid grid-cols-3 gap-1.5">{v.map(x=><button key={x.n} title={x.n} onClick={()=>applyFin(x)} className="rounded-md text-[10px] h-12 flex items-end p-1 text-left" style={{background:`${patBg(x.p)},${x.c}`,border:'1px solid var(--bd)',color:'#fff',textShadow:'0 0 3px #000'}}>{x.n}</button>)}</div></div>:null})}
+      <div className="flex items-center gap-2 pt-1"><input type="color" value={custom} onChange={e=>setCustom(e.target.value)} title="Custom color"/><button className="bt flex-1 justify-center" style={{border:'1px solid var(--bd)'}} onClick={()=>applyFin({c:custom,p:''})}>Apply custom color</button></div></>}
+    </div>
+   </aside>}
+   <main ref={box} className="flex-1 relative min-w-0" style={{background:'var(--cv)'}}>
+    {mode==='2d'?<canvas ref={cv} style={{width:sz.w,height:sz.h,cursor:tool==='select'?'default':'crosshair'}} onMouseDown={md} onMouseMove={mm} onMouseUp={mu} onMouseLeave={mu} onContextMenu={e=>e.preventDefault()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const d=CAT.find(c=>c.k===e.dataTransfer.getData('text/plain'));if(d){const p=pt(e);addItem(d,sn(p.x),sn(p.y))}}}/>:<Scene3D P={P} layer={layer} night={night} fp={fp}/>}
+    {mode==='2d'&&<div className="pn absolute top-2 left-2 flex flex-col gap-1 p-1 rounded-xl">{TOOLS.map(([k,l])=><button key={k} className={`bt ${tool===k?'on':''}`} title={l} onClick={()=>pick(k)}><I n={k}/></button>)}</div>}
+    {mode==='2d'&&<div className="pn absolute bottom-9 left-2 flex items-center gap-1 p-1 rounded-xl"><button className="bt" title="Zoom out" onClick={()=>zoom(.8)}><I n="minus"/></button><span className="text-xs w-10 text-center">{Math.round(view.z*100)}%</span><button className="bt" title="Zoom in" onClick={()=>zoom(1.25)}><I n="plus"/></button><button className="bt" title="Reset view" onClick={()=>setView({ox:120,oy:110,z:1})}><I n="reset"/></button>
+     <button className={`bt ${snap?'on':''}`} title="Snap to grid" onClick={()=>setSnap(!snap)}><I n="grid"/>Snap</button><button className="bt" title="Switch units" onClick={()=>setUnit(unit==='m'?'ft':'m')}>{unit}</button></div>}
+    {mode==='3d'&&<div className="pn absolute top-2 left-2 flex gap-1 p-1 rounded-xl"><button className={`bt ${night?'on':''}`} onClick={()=>setNight(!night)} title="Daylight or night lighting"><I n={night?'moon':'sun'}/>{night?'Night':'Daylight'}</button><button className={`bt ${fp?'on':''}`} onClick={()=>setFp(!fp)} title="First-person walkthrough"><I n="eye"/>First person</button></div>}
+    {mode==='2d'&&sObj&&sel.t!=='wire'&&<div className="pn absolute top-2 right-2 w-56 rounded-xl p-3 space-y-2 max-h-[70%] overflow-auto">
+     <div className="flex justify-between items-center"><b className="text-sm">{sel.t==='item'?sObj.n:sel.t==='op'?(sObj.type==='door'?'Door':'Window'):sel.t==='wall'?'Wall':'Floor zone'}</b><div className="flex gap-1">{sel.t==='item'&&<button className="bt" title="Rotate 90 degrees (R)" onClick={()=>edit('item',sObj.id,{rot:(sObj.rot+90)%360})}><I n="rot"/></button>}<button className="bt" title="Delete (Del)" onClick={del}><I n="trash"/></button></div></div>
+     {sel.t==='wall'&&<><F l={`Length (${unit})`} v={unit==='m'?len(sObj):len(sObj)*3.28084} on={v=>{const L=len(sObj),m=unit==='m'?v:v/3.28084;edit('wall',sObj.id,{x2:sObj.x1+(sObj.x2-sObj.x1)/L*m,y2:sObj.y1+(sObj.y2-sObj.y1)/L*m})}}/><F l="Height (m)" v={sObj.h} on={h=>edit('wall',sObj.id,{h})}/><F l="Thickness (m)" v={sObj.t} st={.05} on={t=>edit('wall',sObj.id,{t})}/></>}
+     {sel.t==='op'&&<><F l="Width (m)" v={sObj.w} on={w=>edit('op',sObj.id,{w})}/><label className="flex justify-between text-xs"><span className="mu">Type</span><select className="inp w-24" value={sObj.type} onChange={e=>edit('op',sObj.id,{type:e.target.value,w:e.target.value==='door'?WS:1.2})}><option>door</option><option>window</option></select></label></>}
+     {sel.t==='item'&&<><F l="Width (m)" v={sObj.w} on={w=>edit('item',sObj.id,{w})}/><F l="Depth (m)" v={sObj.d} on={d=>edit('item',sObj.id,{d})}/><F l="Height (m)" v={sObj.h} on={h=>edit('item',sObj.id,{h})}/><F l="Elevation (m)" v={sObj.elev} on={elev=>edit('item',sObj.id,{elev})}/><F l="Rotation (deg)" v={sObj.rot} st={15} on={rot=>edit('item',sObj.id,{rot:rot%360})}/></>}
+     {sel.t==='floor'&&<><F l="Width (m)" v={sObj.w} on={w=>edit('floor',sObj.id,{w})}/><F l="Depth (m)" v={sObj.d} on={d=>edit('floor',sObj.id,{d})}/></>}
+     {sel.t!=='op'&&<label className="flex justify-between items-center text-xs"><span className="mu">Color</span><input type="color" value={sObj.col} onChange={e=>edit(sel.t,sObj.id,{col:e.target.value,pat:''})}/></label>}
+    </div>}
+    <div className="absolute bottom-2 left-2 right-2 text-xs mu truncate pointer-events-none">{msg||(mode==='2d'?HINT[tool]:fp?'Drag to look. W A S D or arrow keys to walk.':'Drag to orbit, right-drag to pan, wheel to zoom.')}</div>
+   </main>
+  </div>
+  {modal==='bom'&&<Modal t="Bill of materials" x={()=>setModal(null)}><table className="w-full text-sm"><tbody>
+   {[['Wall area, gross',bom.gross.toFixed(2)+' m²'],['Wall area, net of openings',bom.net.toFixed(2)+' m²'],['Floor area',bom.fl.toFixed(2)+' m²'],['Doors / windows',`${bom.doors} / ${P.ops.length-bom.doors}`],['Wall segments',P.walls.length],['Wire runs (est. length)',`${P.wires.length} (${bom.wl.toFixed(1)} m)`],['Estimated component count',bom.comps]].map(([a,b])=><tr key={a} style={{borderBottom:'1px solid var(--bd)'}}><td className="py-1 mu">{a}</td><td className="py-1 text-right">{b}</td></tr>)}
+   {Object.entries(bom.cnt).map(([a,b])=><tr key={a} style={{borderBottom:'1px solid var(--bd)'}}><td className="py-1">{a}</td><td className="py-1 text-right">× {b}</td></tr>)}</tbody></table></Modal>}
+  {modal==='data'&&<Modal t="Save or load project" x={()=>setModal(null)}><textarea className="inp w-full h-48 font-mono" value={txt} onChange={e=>setTxt(e.target.value)}/><div className="flex gap-2 mt-2 flex-wrap">
+   <button className="bt on" onClick={()=>load(txt)}>Load from text</button><button className="bt" style={{border:'1px solid var(--bd)'}} onClick={()=>navigator.clipboard?.writeText(txt)}>Copy</button>
+   <a className="bt" style={{border:'1px solid var(--bd)'}} download="plancraft-project.json" href={'data:application/json;charset=utf-8,'+encodeURIComponent(txt)}>Download file</a>
+   <label className="bt cursor-pointer" style={{border:'1px solid var(--bd)'}}>Open file<input type="file" accept=".json" hidden onChange={e=>{const fl=e.target.files[0];fl&&fl.text().then(load)}}/></label></div></Modal>}
+  {modal==='png'&&<Modal t="Blueprint export" x={()=>setModal(null)}><img src={txt} alt="Blueprint" className="w-full rounded-md" style={{border:'1px solid var(--bd)'}}/><a className="bt on mt-2" download="plancraft-blueprint.png" href={txt}>Download PNG</a></Modal>}
+ </div>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script></body></html>
