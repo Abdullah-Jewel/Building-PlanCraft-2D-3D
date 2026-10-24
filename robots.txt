@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://abdullah-jewel.github.io/Building-PlanCraft-2D-3D/sitemap.xml
