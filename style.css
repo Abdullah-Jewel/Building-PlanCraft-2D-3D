@@ -35,5 +35,9 @@ th,td{border:1px solid var(--bd);padding:8px 10px;text-align:left}th{background:
 footer.site{border-top:1px solid var(--bd);background:var(--card);margin-top:40px;padding:26px 0;color:var(--mu);font-size:15px}
 footer.site .cols{display:flex;gap:28px;flex-wrap:wrap}
 footer.site a{color:var(--mu)}
+.profile{display:flex;gap:26px;align-items:center;background:var(--card);border:1px solid var(--bd);border-radius:18px;padding:22px;margin:8px 0 26px}
+.profile img{width:190px;height:237px;object-fit:cover;object-position:center top;border-radius:14px;flex:none}
+article.post .profile h2{margin:0 0 2px;font-size:26px}.profile .role{color:var(--ac2);font-weight:600;margin:0 0 10px;font-size:15.5px}.profile p{margin:0 0 10px}
+@media (max-width:640px){.profile{flex-direction:column;text-align:left;align-items:flex-start}.profile img{width:100%;height:auto;aspect-ratio:4/5}}
 .tool-cta{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:20px;margin:34px 0;display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap}
 @media (max-width:640px){body{font-size:16.5px}.hero{padding:36px 0 24px}}
